@@ -1,0 +1,13 @@
+[project]
+name = "delaware-name-checker"
+version = "0.1.0"
+description = "Automated tool to check corporate name availability in Delaware using Steel browser automation and OpenAI"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "steel-sdk>=0.6.0",
+    "requests>=2.32.0",
+    "openai>=1.95.0",
+    "playwright>=1.53.0",
+    "python-dotenv>=1.0.0",
+]
