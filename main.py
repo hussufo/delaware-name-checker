@@ -93,6 +93,7 @@ def solve_captcha_with_api(session_id: str, page):
     STEEL_API_KEY = os.getenv("STEEL_API_KEY")
 
     solve_url = f"https://api.steel.dev/v1/sessions/{session_id}/captchas/solve-image"
+    status_url = f"https://api.steel.dev/v1/sessions/{session_id}/captchas/status"
     headers = { "Content-Type": "application/json", "steel-api-key": STEEL_API_KEY }
 
     image_xpath = "//*[@id='ctl00_ContentPlaceHolder1_ecorpCaptcha1_captchaImage']"
@@ -112,19 +113,47 @@ def solve_captcha_with_api(session_id: str, page):
         if not response_data.get("success"):
             raise Exception(f"Failed to initiate CAPTCHA solve. API message: {response_data.get('message')}")
         
-        print("CAPTCHA solve request accepted. Waiting for 'Image Solved' text to appear on the page...")
-
-        confirmation_locator = page.get_by_text("Image Solved", exact=False)
-        confirmation_locator.wait_for(timeout=120000) 
-
-        print("Found 'Image Solved' text. Proceeding with form submission.")
+        print("CAPTCHA solve request accepted. Polling for completion...")
+        
+        max_attempts = 60  
+        attempt = 0
+        
+        while attempt < max_attempts:
+            try:
+                status_response = requests.get(status_url, headers=headers, timeout=30)
+                status_response.raise_for_status()
+                status_data = status_response.json()
+                
+                if status_data and len(status_data) > 0:
+                    captcha_state = status_data[0]
+                    is_solving = captcha_state.get("isSolvingCaptcha", True)
+                    
+                    if not is_solving:
+                        print("CAPTCHA has been solved successfully!")
+                        break
+                    else:
+                        print(f"CAPTCHA still being solved... (attempt {attempt + 1}/{max_attempts})")
+                else:
+                    print("No captcha state found in response.")
+                
+            except requests.exceptions.RequestException as e:
+                print(f"Error checking captcha status: {e}")
+            
+            attempt += 1
+            if attempt < max_attempts:
+                time.sleep(1)
+        
+        if attempt >= max_attempts:
+            raise TimeoutError("Timeout: CAPTCHA was not solved within the time limit.")
+        
+        print("CAPTCHA solved. Proceeding with form submission.")
         
     except requests.exceptions.RequestException as e:
         print(f"An error occurred with the Steel CAPTCHA API: {e}")
         page.screenshot(path="captcha_error_screenshot.png")
         raise
     except TimeoutError:
-        print("Timeout: Did not find 'Image Solved' text on the page within the time limit.")
+        print("Timeout: CAPTCHA was not solved within the time limit.")
         page.screenshot(path="timeout_screenshot.png")
         raise
 
