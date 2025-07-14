@@ -2,6 +2,7 @@ import os
 import time
 import requests
 import openai
+import argparse
 from playwright.sync_api import sync_playwright
 from steel import Steel
 from dotenv import load_dotenv
@@ -10,10 +11,40 @@ import json
 load_dotenv()
 
 try:
-    client = Steel(steel_api_key=os.environ["STEEL_API_KEY"], base_url=os.getenv("STEEL_API_URL"))
+    client = Steel(steel_api_key=os.environ["STEEL_API_KEY"])
 except KeyError:
     raise Exception("STEEL_API_KEY environment variable not set.")
-    
+
+ENTITY_TYPE_MAPPING = {
+    "corporation": ("C", "CORPORATION"),
+    "statutory_trust": ("ST", "STATUTORY TRUST"),
+    "limited_partnership": ("LP", "LIMITED PARTNERSHIP"),
+    "limited_liability_partnership": ("LLP", "LIMITED LIABILITY PARTNERSHIP"),
+    "limited_liability_company": ("LLC", "LIMITED LIABILITY COMPANY"),
+    "general_partnership": ("GP", "GENERAL PARTNERSHIP"),
+    "llc_registered_series": ("RSELLC", "LLC REGISTERED SERIES"),
+    "lp_registered_series": ("RSELP", "LP REGISTERED SERIES")
+}
+
+def get_entity_choices():
+    """Return list of available entity type choices for argparse"""
+    return list(ENTITY_TYPE_MAPPING.keys())
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="Check Delaware corporate name availability")
+    parser.add_argument(
+        "entity_name",
+        help="The entity name to check (e.g., 'GEMINI AUTOMATION SERVICES')"
+    )
+    parser.add_argument(
+        "--entity-type",
+        choices=get_entity_choices(),
+        default="corporation",
+        help="Type of entity to check (default: corporation)"
+    )
+    return parser.parse_args()
+
 def analyze_result(html_content: str):
     try:
         client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -59,10 +90,9 @@ def analyze_result(html_content: str):
 
 
 def solve_captcha_with_api(session_id: str, page):
-    STEEL_API_URL = os.getenv("STEEL_API_URL", "https://api.steel.dev")
     STEEL_API_KEY = os.getenv("STEEL_API_KEY")
 
-    solve_url = f"{STEEL_API_URL}/v1/sessions/{session_id}/captchas/solve-image"
+    solve_url = f"https://api.steel.dev/v1/sessions/{session_id}/captchas/solve-image"
     headers = { "Content-Type": "application/json", "steel-api-key": STEEL_API_KEY }
 
     image_xpath = "//*[@id='ctl00_ContentPlaceHolder1_ecorpCaptcha1_captchaImage']"
@@ -99,6 +129,12 @@ def solve_captcha_with_api(session_id: str, page):
         raise
 
 def main():
+    args = parse_arguments()
+    entity_name_to_check = args.entity_name
+    entity_type_key = args.entity_type
+    
+    entity_type_code, entity_ending = ENTITY_TYPE_MAPPING[entity_type_key]
+    
     session = None
     browser = None
     try:
@@ -117,7 +153,6 @@ def main():
         page = current_context.pages[0]
 
         target_url = "https://icis.corp.delaware.gov/ecorp/namereserv/namereservation.aspx"
-        entity_name_to_check = "GEMINI AUTOMATION SERVICES"
         
         print(f"Navigating to target URL: {target_url}")
         page.goto(target_url, wait_until="networkidle")
@@ -125,12 +160,12 @@ def main():
         print("Filling out the form...")
         page.locator("#ctl00_ContentPlaceHolder1_frmDisclaimerChkBox").check()
         print("- Checked disclaimer.")
-        page.locator("#ctl00_ContentPlaceHolder1_frmEntityType").select_option("C")
-        print("- Selected Entity Kind: 'CORPORATION'.")
+        page.locator("#ctl00_ContentPlaceHolder1_frmEntityType").select_option(entity_type_code)
+        print(f"- Selected Entity Kind: '{entity_ending}'.")
         entity_ending_selector = "#ctl00_ContentPlaceHolder1_frmEntityEnding"
         page.locator(entity_ending_selector).wait_for(state="visible", timeout=10000)
-        page.locator(entity_ending_selector).select_option("CORPORATION")
-        print("- Selected Entity Ending: 'CORPORATION'.")
+        page.locator(entity_ending_selector).select_option(entity_ending)
+        print(f"- Selected Entity Ending: '{entity_ending}'.")
         page.locator("#ctl00_ContentPlaceHolder1_frmEntityName").fill(entity_name_to_check)
         print(f"- Entered Entity Name: '{entity_name_to_check}'.")
 
@@ -153,16 +188,16 @@ def main():
             message = analysis_result.get("status_message", "Status message not found.")
 
             if is_available:
-                print(f"✅ The corporate name '{entity_name_to_check}' is available for registration.")
+                print(f"✅ The {entity_ending.lower()} name '{entity_name_to_check}' is available for registration.")
                 if cost is not None:
                     # Format the cost as currency
                     print(f"   Estimated registration cost: ${cost:.2f}")
                 else:
                     print("   Cost information is not available.")
             else:
-                print(f"❌ The corporate name '{entity_name_to_check}' is unavailable or already in use.")
+                print(f"❌ The {entity_ending.lower()} name '{entity_name_to_check}' is unavailable or already in use.")
             
-            print(f"\n   (Reference) Full message analyzed by AI: \"{message}\"")
+            print(f"\n   (Reference) Full message analyzed: \"{message}\"")
 
         else:
             print("Failed to get analysis from AI.")
@@ -188,4 +223,5 @@ def main():
             print("Steel session released.")
         print("Done!")
 
-main()
+if __name__ == "__main__":
+    main()
