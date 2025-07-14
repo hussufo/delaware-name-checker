@@ -2,13 +2,6 @@
 
 An automated tool to check corporate name availability in Delaware using Steel browser automation and OpenAI for result analysis.
 
-## Features
-
-- 🔍 **Automated Search**: Automatically searches the Delaware Division of Corporations database
-- 🤖 **CAPTCHA Solving**: Uses Steel's API to solve CAPTCHAs automatically
-- 🧠 **AI Analysis**: Leverages OpenAI to analyze search results and determine availability
-- 📊 **Structured Output**: Returns availability status, cost information, and detailed messages
-
 ## Requirements
 
 - Python 3.11+
@@ -55,6 +48,7 @@ Edit `.env` with your actual API keys:
 
 ```
 STEEL_API_KEY=your_steel_api_key_here
+STEEL_API_URL=https://api.steel.dev
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
