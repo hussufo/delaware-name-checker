@@ -13,7 +13,7 @@ An automated tool to check corporate name availability in Delaware using Steel b
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/hussufo/delaware-name-checker
 cd delaware-name-checker
 ```
 
@@ -33,7 +33,7 @@ source venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ### 4. Set up environment variables
@@ -48,23 +48,64 @@ Edit `.env` with your actual API keys:
 
 ```
 STEEL_API_KEY=your_steel_api_key_here
-STEEL_API_URL=https://api.steel.dev
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 ## Usage
 
+### Basic Usage
+
 ```bash
-python main.py
+python main.py "YOUR COMPANY NAME"
+```
+
+### With Entity Type Selection
+
+```bash
+python main.py "YOUR COMPANY NAME" --entity-type corporation
+```
+
+### Available Entity Types
+
+- `corporation` (default)
+- `statutory_trust`
+- `limited_partnership`
+- `limited_liability_partnership`
+- `limited_liability_company`
+- `general_partnership`
+- `llc_registered_series`
+- `lp_registered_series`
+
+### Examples
+
+```bash
+# Check a corporation name (default)
+python main.py "GEMINI AUTOMATION SERVICES"
+
+# Check an LLC name
+python main.py "TECH SOLUTIONS LLC" --entity-type limited_liability_company
+
+# Check a limited partnership
+python main.py "INVESTMENT PARTNERS LP" --entity-type limited_partnership
+
+# Check a statutory trust
+python main.py "PROPERTY TRUST" --entity-type statutory_trust
+```
+
+### Help
+
+```bash
+python main.py --help
 ```
 
 ## Configuration
 
-The script currently searches for "GEMINI AUTOMATION SERVICES" as a corporation. To change the search parameters, edit the following variables in `main.py`:
+The script now accepts command-line arguments for:
 
-- `entity_name_to_check`: The business name to search for
-- `entity_type`: Currently set to "C" (Corporation)
-- `entity_ending`: Currently set to "CORPORATION"
+- **Entity Name**: The business name to search for (required argument)
+- **Entity Type**: The type of entity to check (optional, defaults to "corporation")
+
+No manual code editing is required - all configuration is done through command-line arguments.
 
 ## Output
 
